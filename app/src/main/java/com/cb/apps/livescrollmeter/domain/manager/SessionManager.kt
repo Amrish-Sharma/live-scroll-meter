@@ -1,10 +1,17 @@
 package com.cb.apps.livescrollmeter.domain.manager
 
+import android.view.accessibility.AccessibilityEvent
 import com.cb.apps.livescrollmeter.data.local.SessionDao
 import com.cb.apps.livescrollmeter.data.local.SessionEntity
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -14,7 +21,6 @@ class SessionManager @Inject constructor(
 ) {
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var currentApp: String? = null
-    private var startTime = 0L
     private var lastSwipeTime = 0L
 
     private val _swipeCount = MutableStateFlow(0)
@@ -38,7 +44,6 @@ class SessionManager @Inject constructor(
 
         currentApp = packageName
         _activePackage.value = packageName
-        startTime = System.currentTimeMillis()
         _swipeCount.value = 0
         _sessionTime.value = 0
         lastClassName = null
@@ -82,7 +87,7 @@ class SessionManager @Inject constructor(
         } else false
     }
 
-    fun isHeuristicSwipe(event: android.view.accessibility.AccessibilityEvent): Boolean {
+    fun isHeuristicSwipe(event: AccessibilityEvent): Boolean {
         val now = System.currentTimeMillis()
         val className = event.className
         val contentDesc = event.contentDescription

@@ -1,8 +1,8 @@
 package com.cb.apps.livescrollmeter.service.accessibility
 
 import android.accessibilityservice.AccessibilityService
-import android.view.accessibility.AccessibilityEvent
 import android.util.Log
+import android.view.accessibility.AccessibilityEvent
 import com.cb.apps.livescrollmeter.domain.manager.SessionManager
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject

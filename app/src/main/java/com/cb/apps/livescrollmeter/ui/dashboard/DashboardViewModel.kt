@@ -5,7 +5,11 @@ import androidx.lifecycle.viewModelScope
 import com.cb.apps.livescrollmeter.data.local.SessionDao
 import com.cb.apps.livescrollmeter.domain.manager.SessionManager
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 
 @HiltViewModel
