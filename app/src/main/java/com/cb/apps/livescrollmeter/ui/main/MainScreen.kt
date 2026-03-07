@@ -7,14 +7,16 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.cb.apps.livescrollmeter.domain.manager.SessionManager
-import kotlinx.coroutines.flow.collectLatest
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
-fun MainScreen() {
-
-    val swipeCount by SessionManager.swipeCount.collectAsState()
-    val sessionTime by SessionManager.sessionTime.collectAsState()
+fun MainScreen(
+    viewModel: MainViewModel = hiltViewModel()
+) {
+    val swipeCount by viewModel.swipeCount.collectAsStateWithLifecycle()
+    val sessionTime by viewModel.sessionTime.collectAsStateWithLifecycle()
+    val activePackage by viewModel.activePackage.collectAsStateWithLifecycle()
 
     Column(
         modifier = Modifier
@@ -38,8 +40,15 @@ fun MainScreen() {
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            text = "Session Time: ${sessionTime / 1000}s",
+            text = "Session Time: ${sessionTime}s",
             style = MaterialTheme.typography.headlineSmall
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(
+            text = "Active App: ${activePackage ?: "-"}",
+            style = MaterialTheme.typography.bodyLarge
         )
     }
 }
