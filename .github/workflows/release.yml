@@ -1,4 +1,4 @@
-name: Create Release
+name: Build Signed APK
 
 on:
   push:
@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v3
 
       - name: Setup Android SDK
@@ -26,16 +26,24 @@ jobs:
           java-version: 17
           cache: gradle
 
+      - name: Decode Keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > release-keystore.jks
+
+      - name: Create keystore.properties
+        run: |
+          echo "storePassword=${{ secrets.KEYSTORE_PASSWORD }}" >> keystore.properties
+          echo "keyPassword=${{ secrets.KEY_PASSWORD }}" >> keystore.properties
+          echo "keyAlias=${{ secrets.KEY_ALIAS }}" >> keystore.properties
+          echo "storeFile=release-keystore.jks" >> keystore.properties
+
       - name: Grant Gradle permission
         run: chmod +x gradlew
 
-      - name: Build Release APK
+      - name: Build Release
         run: ./gradlew assembleRelease
 
-      - name: Verify APK
-        run: ls app/build/outputs/apk/release/
-
-      - name: Upload APK to GitHub Release
+      - name: Upload APK to Release
         uses: softprops/action-gh-release@v1
         with:
           files: app/build/outputs/apk/release/app-release.apk
