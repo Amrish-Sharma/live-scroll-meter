@@ -1,6 +1,7 @@
 package com.cb.apps.livescrollmeter.domain.manager
 
-import android.view.accessibility.AccessibilityEvent
+import android.util.Log
+import android.view.accessibility.AccessibilityNodeInfo
 import com.cb.apps.livescrollmeter.data.local.SessionDao
 import com.cb.apps.livescrollmeter.data.local.SessionEntity
 import kotlinx.coroutines.CoroutineScope
@@ -32,33 +33,30 @@ class SessionManager @Inject constructor(
     private val _activePackage = MutableStateFlow<String?>(null)
     val activePackage: StateFlow<String?> = _activePackage
 
-    // For heuristic swipe detection
-    private var lastClassName: CharSequence? = null
-    private var lastContentDesc: CharSequence? = null
-    private var lastHeuristicSwipeTime = 0L
-
+    private var lastContentIdentifier: String? = null
     private var timerJob: Job? = null
 
     fun startSession(packageName: String) {
         if (currentApp == packageName) return
 
+        Log.d("LSM_DEBUG", "Starting session for $packageName")
         currentApp = packageName
         _activePackage.value = packageName
         _swipeCount.value = 0
         _sessionTime.value = 0
-        lastClassName = null
-        lastContentDesc = null
-        lastHeuristicSwipeTime = 0L
+        lastContentIdentifier = null
+        lastSwipeTime = System.currentTimeMillis() // Set initial time to avoid immediate double-trigger
 
         startTimer()
     }
 
     fun endSession() {
-        val packageName = currentApp
+        val packageName = currentApp ?: return
+        Log.d("LSM_DEBUG", "Ending session for $packageName")
         val count = _swipeCount.value
         val duration = _sessionTime.value
 
-        if (packageName != null && (count > 0 || duration > 5)) {
+        if (count > 0 || duration > 5) {
             scope.launch {
                 sessionDao.insertSession(
                     SessionEntity(
@@ -72,35 +70,102 @@ class SessionManager @Inject constructor(
 
         currentApp = null
         _activePackage.value = null
+        lastContentIdentifier = null
         stopTimer()
     }
 
     fun incrementSwipe() {
         _swipeCount.value += 1
+        Log.d("LSM_DEBUG", "Swipe incremented. New count: ${_swipeCount.value}")
     }
 
-    fun isThrottlePassed(): Boolean {
-        val now = System.currentTimeMillis()
-        return if (now - lastSwipeTime > 250) {
-            lastSwipeTime = now
-            true
-        } else false
-    }
+    fun checkContentChanged(rootNode: AccessibilityNodeInfo): Boolean {
+        val currentIdentifier = extractContentIdentifier(rootNode)
+        
+        if (currentIdentifier == null) return false
 
-    fun isHeuristicSwipe(event: AccessibilityEvent): Boolean {
-        val now = System.currentTimeMillis()
-        val className = event.className
-        val contentDesc = event.contentDescription
-        val changed = (className != null && className != lastClassName) ||
-                (contentDesc != null && contentDesc != lastContentDesc)
-        val rapid = (now - lastHeuristicSwipeTime) < 1500 // 1.5s
-        val result = changed && rapid
-        if (changed) {
-            lastClassName = className
-            lastContentDesc = contentDesc
-            lastHeuristicSwipeTime = now
+        if (currentIdentifier != lastContentIdentifier) {
+            val now = System.currentTimeMillis()
+            
+            // Increased debounce to 1000ms to prevent double counts from overlapping events
+            if (now - lastSwipeTime > 1000) {
+                if (lastContentIdentifier != null) {
+                    Log.d("LSM_DEBUG", "Content changed: $lastContentIdentifier -> $currentIdentifier")
+                    lastContentIdentifier = currentIdentifier
+                    lastSwipeTime = now
+                    return true
+                } else {
+                    // First content detected in session
+                    lastContentIdentifier = currentIdentifier
+                    lastSwipeTime = now
+                    Log.d("LSM_DEBUG", "Initial content set: $currentIdentifier")
+                }
+            } else {
+                Log.d("LSM_DEBUG", "Content change ignored (throttled): $currentIdentifier")
+            }
         }
-        return result
+        return false
+    }
+
+    private fun extractContentIdentifier(rootNode: AccessibilityNodeInfo): String? {
+        val packageName = currentApp ?: return null
+        
+        val specificId = when (packageName) {
+            "com.google.android.youtube" -> {
+                val ids = listOf(
+                    "com.google.android.youtube:id/reel_channel_name",
+                    "com.google.android.youtube:id/reel_video_caption",
+                    "com.google.android.youtube:id/video_title"
+                )
+                findTextByIds(rootNode, ids)
+            }
+            "com.instagram.android" -> {
+                val ids = listOf(
+                    "com.instagram.android:id/reels_video_view_user_name",
+                    "com.instagram.android:id/reels_video_view_caption"
+                )
+                findTextByIds(rootNode, ids)
+            }
+            "com.twitter.android", "com.x.android" -> {
+                val ids = listOf(
+                    "com.twitter.android:id/tweet_text_view",
+                    "com.twitter.android:id/screen_name"
+                )
+                findTextByIds(rootNode, ids)
+            }
+            else -> null
+        }
+        
+        return specificId ?: findHeuristicIdentifier(rootNode)
+    }
+
+    private fun findTextByIds(rootNode: AccessibilityNodeInfo, ids: List<String>): String? {
+        val texts = ids.mapNotNull { id ->
+            val nodes = rootNode.findAccessibilityNodeInfosByViewId(id)
+            val text = nodes.firstOrNull()?.text?.toString()
+            nodes.forEach { it.recycle() }
+            text
+        }
+        return if (texts.isEmpty()) null else texts.joinToString("|")
+    }
+
+    private fun findHeuristicIdentifier(node: AccessibilityNodeInfo?): String? {
+        if (node == null) return null
+        
+        val text = node.text?.toString()
+        if (!text.isNullOrBlank() && text.length > 5) {
+            // Exclude strings that look like timestamps or progress (e.g., "00:15", "1:23 / 4:56")
+            if (!text.contains(":") && !text.contains("/")) {
+                return text
+            }
+        }
+        
+        for (i in 0 until node.childCount) {
+            val child = node.getChild(i)
+            val childId = findHeuristicIdentifier(child)
+            if (childId != null) return childId
+        }
+        return null
     }
 
     private fun startTimer() {
@@ -108,7 +173,7 @@ class SessionManager @Inject constructor(
         timerJob = scope.launch {
             while (isActive) {
                 delay(1000)
-                _sessionTime.value += 1 // seconds
+                _sessionTime.value += 1
             }
         }
     }
