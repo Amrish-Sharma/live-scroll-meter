@@ -39,7 +39,6 @@ class ScrollAccessibilityService : AccessibilityService() {
             handleSwipeDetection(event, rootNode)
         } else {
             // Only end session if we are sure we are not in a short feed but still in the app
-            // Some events might not have the full hierarchy, so we be careful
             if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
                  sessionManager.endSession()
             }
@@ -55,7 +54,6 @@ class ScrollAccessibilityService : AccessibilityService() {
                     "com.google.android.youtube:id/reel_container"
                 )
                 ids.any { rootNode.findAccessibilityNodeInfosByViewId(it).isNotEmpty() } ||
-                // Fallback: Check if there's a node with "Shorts" in content description or text
                 searchForText(rootNode, "Shorts")
             }
             "com.instagram.android" -> {
@@ -68,7 +66,7 @@ class ScrollAccessibilityService : AccessibilityService() {
             "com.twitter.android", "com.x.android" -> {
                 val ids = listOf(
                     "com.twitter.android:id/video_container",
-                    "com.twitter.android:id/reels_container" // Hypothetical
+                    "com.twitter.android:id/reels_container"
                 )
                 ids.any { rootNode.findAccessibilityNodeInfosByViewId(it).isNotEmpty() }
             }
@@ -90,17 +88,22 @@ class ScrollAccessibilityService : AccessibilityService() {
 
     private fun handleSwipeDetection(event: AccessibilityEvent, rootNode: AccessibilityNodeInfo) {
         // Log for debugging
-        Log.d("LSM_DEBUG", "Event: ${AccessibilityEvent.eventTypeToString(event.eventType)} Source: ${event.className}")
+        Log.d("LSM_DEBUG", "Event: ${AccessibilityEvent.eventTypeToString(event.eventType)}")
 
         when (event.eventType) {
+            // Focusing on more "intent-based" events to reduce double counts
             AccessibilityEvent.TYPE_VIEW_SCROLLED,
-            AccessibilityEvent.TYPE_VIEW_SELECTED,
-            AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> {
-                // Check if content identifier changed
+            AccessibilityEvent.TYPE_VIEW_SELECTED -> {
                 if (sessionManager.checkContentChanged(rootNode)) {
                     sessionManager.incrementSwipe()
-                    Log.d("LSM_DEBUG", "Swipe detected! Total: ${sessionManager.swipeCount.value}")
                 }
+            }
+            // Optional: check on content change but maybe with stricter identifier
+            AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> {
+                 // We still check here but SessionManager's 1s debounce will catch duplicates
+                 if (sessionManager.checkContentChanged(rootNode)) {
+                     sessionManager.incrementSwipe()
+                 }
             }
         }
     }

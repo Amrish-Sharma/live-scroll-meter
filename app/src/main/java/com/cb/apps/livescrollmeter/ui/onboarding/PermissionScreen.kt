@@ -1,9 +1,11 @@
 package com.cb.apps.livescrollmeter.ui.onboarding
 
+import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
+import android.view.accessibility.AccessibilityManager
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -19,10 +21,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.cb.apps.livescrollmeter.service.accessibility.ScrollAccessibilityService
 
 @Composable
-fun PermissionScreen(onPermissionGranted: () -> Unit) {
+fun PermissionScreen(onPermissionsGranted: () -> Unit) {
     val context = LocalContext.current
+    val hasOverlay = Settings.canDrawOverlays(context)
+    val hasAccessibility = isAccessibilityServiceEnabled(context, ScrollAccessibilityService::class.java)
+
+    if (hasOverlay && hasAccessibility) {
+        onPermissionsGranted()
+    }
 
     Column(
         modifier = Modifier
@@ -32,7 +41,7 @@ fun PermissionScreen(onPermissionGranted: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "Overlay Permission Required",
+            text = "Permissions Required",
             style = MaterialTheme.typography.headlineMedium,
             textAlign = TextAlign.Center
         )
@@ -40,31 +49,49 @@ fun PermissionScreen(onPermissionGranted: () -> Unit) {
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            text = "Live Scroll Meter needs to display bubbles over other apps to show your scrolling metrics.",
+            text = "Live Scroll Meter needs permissions to display metrics and detect scrolls.",
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center
         )
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        Button(
-            onClick = {
-                if (!Settings.canDrawOverlays(context)) {
+        if (!hasOverlay) {
+            Button(
+                onClick = {
                     val intent = Intent(
                         Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                         Uri.parse("package:${context.packageName}")
                     )
                     context.startActivity(intent)
-                } else {
-                    onPermissionGranted()
                 }
+            ) {
+                Text("Grant Overlay Permission")
             }
-        ) {
-            Text("Grant Permission")
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        if (!hasAccessibility) {
+            Button(
+                onClick = {
+                    val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                    context.startActivity(intent)
+                }
+            ) {
+                Text("Grant Accessibility Permission")
+            }
         }
     }
 }
 
-fun hasOverlayPermission(context: Context): Boolean {
-    return Settings.canDrawOverlays(context)
+fun isAccessibilityServiceEnabled(context: Context, service: Class<*>): Boolean {
+    val am = context.getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
+    val enabledServices = am.getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_ALL_MASK)
+    for (enabledService in enabledServices) {
+        val enabledServiceInfo = enabledService.resolveInfo.serviceInfo
+        if (enabledServiceInfo.packageName == context.packageName && enabledServiceInfo.name == service.name) {
+            return true
+        }
+    }
+    return false
 }

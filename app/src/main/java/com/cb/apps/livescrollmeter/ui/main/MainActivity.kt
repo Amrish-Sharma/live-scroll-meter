@@ -9,9 +9,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import com.cb.apps.livescrollmeter.service.accessibility.ScrollAccessibilityService
 import com.cb.apps.livescrollmeter.service.overlay.OverlayService
 import com.cb.apps.livescrollmeter.ui.dashboard.DashboardScreen
 import com.cb.apps.livescrollmeter.ui.onboarding.PermissionScreen
+import com.cb.apps.livescrollmeter.ui.onboarding.isAccessibilityServiceEnabled
 import com.cb.apps.livescrollmeter.ui.theme.LiveScrollMeterTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -23,14 +25,19 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             LiveScrollMeterTheme {
-                var hasPermission by remember { mutableStateOf(Settings.canDrawOverlays(this)) }
+                var permissionsGranted by remember { 
+                    mutableStateOf(
+                        Settings.canDrawOverlays(this) && 
+                        isAccessibilityServiceEnabled(this, ScrollAccessibilityService::class.java)
+                    ) 
+                }
 
-                if (hasPermission) {
+                if (permissionsGranted) {
                     startOverlayService()
                     DashboardScreen()
                 } else {
-                    PermissionScreen(onPermissionGranted = {
-                        hasPermission = true
+                    PermissionScreen(onPermissionsGranted = {
+                        permissionsGranted = true
                         startOverlayService()
                     })
                 }
@@ -47,7 +54,11 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        if (Settings.canDrawOverlays(this)) {
+        // Re-check permissions on resume to refresh UI if user granted them in settings
+        val hasOverlay = Settings.canDrawOverlays(this)
+        val hasAccessibility = isAccessibilityServiceEnabled(this, ScrollAccessibilityService::class.java)
+        
+        if (hasOverlay && hasAccessibility) {
             startOverlayService()
         }
     }
