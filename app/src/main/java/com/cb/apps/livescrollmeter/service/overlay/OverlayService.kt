@@ -26,8 +26,10 @@ import com.cb.apps.livescrollmeter.ui.overlay.ScrollMeterOverlay
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -44,6 +46,7 @@ class OverlayService : Service(), LifecycleOwner, ViewModelStoreOwner, SavedStat
     private lateinit var windowManager: WindowManager
     private var overlayView: ComposeView? = null
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private var hideJob: Job? = null
 
     private val lifecycleRegistry = LifecycleRegistry(this)
     override val viewModelStore: ViewModelStore = ViewModelStore()
@@ -66,7 +69,17 @@ class OverlayService : Service(), LifecycleOwner, ViewModelStoreOwner, SavedStat
     private fun observeActivePackage() {
         serviceScope.launch {
             sessionManager.activePackage.collectLatest { packageName ->
-                if (packageName != null) showOverlay() else hideOverlay()
+                if (packageName != null) {
+                    hideJob?.cancel()
+                    showOverlay()
+                } else {
+                    // Add a small delay before hiding to prevent blinking during rapid transitions
+                    hideJob?.cancel()
+                    hideJob = launch {
+                        delay(500)
+                        hideOverlay()
+                    }
+                }
             }
         }
     }
@@ -84,7 +97,7 @@ class OverlayService : Service(), LifecycleOwner, ViewModelStoreOwner, SavedStat
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.START

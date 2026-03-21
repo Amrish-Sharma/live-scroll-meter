@@ -35,8 +35,10 @@ class SessionManager @Inject constructor(
 
     private var lastContentIdentifier: String? = null
     private var timerJob: Job? = null
+    private var endSessionJob: Job? = null
 
     fun startSession(packageName: String) {
+        endSessionJob?.cancel()
         if (currentApp == packageName) return
 
         Log.d("LSM_DEBUG", "Starting session for $packageName")
@@ -45,12 +47,20 @@ class SessionManager @Inject constructor(
         _swipeCount.value = 0
         _sessionTime.value = 0
         lastContentIdentifier = null
-        lastSwipeTime = System.currentTimeMillis() // Set initial time to avoid immediate double-trigger
+        lastSwipeTime = System.currentTimeMillis()
 
         startTimer()
     }
 
     fun endSession() {
+        if (endSessionJob?.isActive == true) return
+        endSessionJob = scope.launch {
+            delay(1500) // Grace period to prevent blinking during transient states
+            actualEndSession()
+        }
+    }
+
+    private fun actualEndSession() {
         val packageName = currentApp ?: return
         Log.d("LSM_DEBUG", "Ending session for $packageName")
         val count = _swipeCount.value
@@ -82,27 +92,25 @@ class SessionManager @Inject constructor(
     fun checkContentChanged(rootNode: AccessibilityNodeInfo): Boolean {
         val currentIdentifier = extractContentIdentifier(rootNode)
         
-        if (currentIdentifier == null) return false
+        if (currentIdentifier == null || currentIdentifier == lastContentIdentifier) return false
 
-        if (currentIdentifier != lastContentIdentifier) {
-            val now = System.currentTimeMillis()
-            
-            // Increased debounce to 1000ms to prevent double counts from overlapping events
-            if (now - lastSwipeTime > 1000) {
-                if (lastContentIdentifier != null) {
-                    Log.d("LSM_DEBUG", "Content changed: $lastContentIdentifier -> $currentIdentifier")
-                    lastContentIdentifier = currentIdentifier
-                    lastSwipeTime = now
-                    return true
-                } else {
-                    // First content detected in session
-                    lastContentIdentifier = currentIdentifier
-                    lastSwipeTime = now
-                    Log.d("LSM_DEBUG", "Initial content set: $currentIdentifier")
-                }
+        val now = System.currentTimeMillis()
+        
+        // Throttle to prevent double counts from rapid accessibility events
+        if (now - lastSwipeTime > 1200) { 
+            if (lastContentIdentifier != null) {
+                Log.d("LSM_DEBUG", "Content changed: $lastContentIdentifier -> $currentIdentifier")
+                lastContentIdentifier = currentIdentifier
+                lastSwipeTime = now
+                return true
             } else {
-                Log.d("LSM_DEBUG", "Content change ignored (throttled): $currentIdentifier")
+                // First content detected in session - set baseline but don't count as swipe
+                lastContentIdentifier = currentIdentifier
+                lastSwipeTime = now
+                Log.d("LSM_DEBUG", "Initial baseline content set: $currentIdentifier")
             }
+        } else {
+            Log.d("LSM_DEBUG", "Content change ignored (throttled): $currentIdentifier")
         }
         return false
     }
@@ -146,16 +154,18 @@ class SessionManager @Inject constructor(
             nodes.forEach { it.recycle() }
             text
         }
-        return if (texts.isEmpty()) null else texts.joinToString("|")
+        return if (texts.isEmpty() || texts.all { it.isBlank() }) null else texts.joinToString("|")
     }
 
     private fun findHeuristicIdentifier(node: AccessibilityNodeInfo?): String? {
         if (node == null) return null
         
         val text = node.text?.toString()
-        if (!text.isNullOrBlank() && text.length > 5) {
-            // Exclude strings that look like timestamps or progress (e.g., "00:15", "1:23 / 4:56")
-            if (!text.contains(":") && !text.contains("/")) {
+        if (!text.isNullOrBlank() && text.length > 8) { // Increased length to filter noise
+            // Exclude common transient strings
+            val lowerText = text.lowercase()
+            if (!lowerText.contains(":") && !lowerText.contains("/") && 
+                !lowerText.contains("view") && !lowerText.contains("like")) {
                 return text
             }
         }
