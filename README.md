@@ -1,96 +1,57 @@
 # Live Scroll Meter 📱✨
 
-**Live Scroll Meter** is a productivity and usage-tracking Android application designed to help users monitor their social media consumption in real-time. It features a lightweight, floating overlay that tracks **session time** and **swipe counts** specifically for "scroll-heavy" apps like **YouTube Shorts**, **Instagram Reels**, and **X (Twitter)**.
+**Take control of your social media habits.**
+
+Live Scroll Meter is a smart usage tracker designed to help you stay mindful while scrolling through short-form content. It provides real-time feedback on your time and swipe count while you're inside apps like **YouTube Shorts**, **Instagram Reels**, and **X (Twitter)**.
 
 ---
 
-## 🚀 Features
+## 🚀 Key Features
 
-*   **Floating Overlay Bubbles**: Two small, draggable, non-intrusive bubbles that stay on top of supported apps.
-    *   **Bubble 1**: Real-time session timer (e.g., `12m` or `05:30`).
-    *   **Bubble 2**: Swipe counter (e.g., `↑ 42`) to track how many videos or posts you've scrolled through.
-*   **Auto-Detection**: The overlay automatically appears when you open YouTube, Instagram, or X and hides when you leave them.
-*   **Lifetime Statistics**: Uses a local **Room Database** to persist your total usage time and total swipe count across all sessions.
-*   **Modern UI**: Built entirely with **Jetpack Compose** for a smooth, reactive user experience.
-*   **Lightweight**: Designed to run efficiently in the background without impacting device performance.
+*   **Real-time Overlays**: Two floating bubbles appear automatically when you start scrolling, showing your current session time and swipe count.
+*   **Time Limits & Visual Alerts**: Set a daily scrolling goal. The bubbles stay **translucent green** while you're within your limit and turn **translucent red** once you exceed it.
+*   **Smart Detection**: The app intelligently detects when you are in a "scroll-heavy" feed and starts tracking automatically. It stops when you leave.
+*   **Daily Statistics**: Track your progress over time with a detailed list of your daily swipes and total time spent.
+*   **Privacy First**: All your data is stored locally on your device. We do not collect, track, or share any of your personal usage data.
 
 ---
 
-## 🛠 Tech Stack
+## 🛠 Getting Started
 
-*   **Language**: [Kotlin](https://kotlinlang.org/)
-*   **UI Framework**: [Jetpack Compose](https://developer.android.com/jetpack/compose) (including Overlay UI via `WindowManager`)
-*   **Architecture**: Clean Architecture (UI, Domain, Data)
-*   **Dependency Injection**: [Hilt](https://developer.android.com/training/dependency-injection/hilt-android)
-*   **Database**: [Room](https://developer.android.com/training/data-storage/room) (Persistence)
-*   **Background Services**:
-    *   `AccessibilityService`: To detect foreground app changes and swipe gestures.
-    *   `OverlayService`: To manage the lifecycle of the floating windows.
-*   **Processing**: [KSP (Kotlin Symbol Processing)](https://kotlinlang.org/docs/ksp-overview.html) for faster builds.
+To work its magic, Live Scroll Meter needs two specific permissions:
 
----
+1.  **Display Over Other Apps**: This allows the timer and counter bubbles to float on top of YouTube, Instagram, etc.
+2.  **Accessibility Service**: This is used **only** to detect when you are inside a supported app and to count your swipes. It does not read your private messages or personal info.
 
-## 🔒 Permissions Required
-
-To function correctly, the app requires two sensitive permissions:
-
-1.  **Display Over Other Apps (`SYSTEM_ALERT_WINDOW`)**: Required to show the floating bubbles while you are using other applications.
-2.  **Accessibility Service (`BIND_ACCESSIBILITY_SERVICE`)**: Required to:
-    *   Detect which app is currently in the foreground.
-    *   Increment the swipe count by detecting specific scroll gestures in supported apps.
-
-> **Note**: This app does *not* collect or transmit any personal data. All tracking is performed locally on your device.
+### Setup Instructions:
+1.  Open the app for the first time.
+2.  Follow the prompts to enable **Display Over Other Apps** (Picture-in-Picture/Overlay).
+3.  Enable the **Accessibility Service** for "Live Scroll Meter" in your phone's settings.
+4.  Set your desired **Time Limit** on the home dashboard.
 
 ---
 
-## 📦 Installation & Setup
+## 📖 How to Use
 
-1.  **Clone the repository**:
-    ```bash
-    git clone https://github.com/amris/LiveScrollMeter.git
-    ```
-2.  **Open in Android Studio**: (Ladybug or newer recommended).
-3.  **Sync Gradle**: Ensure all dependencies are downloaded via the Version Catalog (`libs.versions.toml`).
-4.  **Build & Run**: Deploy to a device running **Android 8.0 (API 26)** or higher.
-
----
-
-## 📖 Usage
-
-1.  Launch the app and grant the **Overlay Permission** and **Accessibility Permission** when prompted.
-2.  The main dashboard will show your "Total Lifetime Swipes" and "Total Time Spent."
-3.  Open **YouTube Shorts**, **Instagram Reels**, or **X**.
-4.  The floating bubbles will appear. You can **drag them** to any position on the screen.
-5.  Watch the numbers update in real-time as you scroll!
-6.  Close the target apps or return to the Dashboard to see your updated lifetime stats.
+1.  **Set Your Goal**: On the app dashboard, enter the number of minutes you want to allow yourself for scrolling.
+2.  **Start Scrolling**: Open YouTube, Instagram, or X.
+3.  **Monitor in Real-Time**: 
+    *   **Bubble 1**: Shows how long you've been in the current session.
+    *   **Bubble 2**: Shows how many videos/posts you've swiped through.
+    *   **Drag & Drop**: You can move the bubbles anywhere on your screen so they don't block your view.
+4.  **Review Progress**: Return to the Live Scroll Meter app anytime to see a day-by-day breakdown of your usage.
 
 ---
 
-## 🏗 Project Structure
+## 🔒 Privacy & Data
 
-```
-com.cb.apps.livescrollmeter
-├── core            # Common utilities and base classes
-├── data            # Room Entities, DAOs, and Database configuration
-├── di              # Hilt Modules for dependency injection
-├── domain          # Business logic, SessionManager, and UseCases
-├── service
-│   ├── accessibility # ScrollDetection logic
-│   └── overlay       # WindowManager and Overlay lifecycle
-└── ui
-    ├── main          # App Dashboard and Permission screens
-    ├── overlay       # Compose UI for the floating bubbles
-    └── theme         # Design system (Color, Type, Shape)
-```
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request or open an issue for any bugs or feature requests.
+We believe your usage habits are your business.
+*   **No Cloud Sync**: Your data never leaves your phone.
+*   **No Personal Data**: We don't ask for accounts, emails, or names.
+*   **Minimal Impact**: Designed to be lightweight and battery-efficient.
 
 ---
 
 ## 📄 License
 
-This project is licensed under the **MIT License**. See the `LICENSE` file for details.
+This project is licensed under the **MIT License**.
