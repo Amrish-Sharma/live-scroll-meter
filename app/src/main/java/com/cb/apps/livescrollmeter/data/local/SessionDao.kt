@@ -18,4 +18,15 @@ interface SessionDao {
 
     @Query("SELECT SUM(durationSeconds) FROM sessions")
     fun getTotalDuration(): Flow<Long?>
+
+    @Query("""
+        SELECT 
+            date(timestamp / 1000, 'unixepoch', 'localtime') as date,
+            SUM(swipeCount) as totalSwipes,
+            SUM(durationSeconds) as totalDurationSeconds
+        FROM sessions
+        GROUP BY date
+        ORDER BY date DESC
+    """)
+    fun getDailyStats(): Flow<List<DailyStat>>
 }

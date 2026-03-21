@@ -20,6 +20,7 @@ import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import com.cb.apps.livescrollmeter.core.datastore.SettingsDataStore
 import com.cb.apps.livescrollmeter.domain.manager.SessionManager
 import com.cb.apps.livescrollmeter.ui.overlay.ScrollMeterOverlay
 import dagger.hilt.android.AndroidEntryPoint
@@ -36,6 +37,9 @@ class OverlayService : Service(), LifecycleOwner, ViewModelStoreOwner, SavedStat
 
     @Inject
     lateinit var sessionManager: SessionManager
+    
+    @Inject
+    lateinit var settingsDataStore: SettingsDataStore
 
     private lateinit var windowManager: WindowManager
     private var overlayView: ComposeView? = null
@@ -73,7 +77,7 @@ class OverlayService : Service(), LifecycleOwner, ViewModelStoreOwner, SavedStat
             setViewTreeLifecycleOwner(this@OverlayService)
             setViewTreeViewModelStoreOwner(this@OverlayService)
             setViewTreeSavedStateRegistryOwner(this@OverlayService)
-            setContent { ScrollMeterOverlay(sessionManager) }
+            setContent { ScrollMeterOverlay(sessionManager, settingsDataStore) }
         }
 
         val params = WindowManager.LayoutParams(
@@ -94,7 +98,9 @@ class OverlayService : Service(), LifecycleOwner, ViewModelStoreOwner, SavedStat
 
     private fun hideOverlay() {
         overlayView?.let {
-            windowManager.removeView(it)
+            if (it.isAttachedToWindow) {
+                windowManager.removeView(it)
+            }
             overlayView = null
         }
     }

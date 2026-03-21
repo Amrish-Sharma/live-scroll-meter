@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -18,34 +19,47 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.cb.apps.livescrollmeter.core.datastore.SettingsDataStore
 import com.cb.apps.livescrollmeter.domain.manager.SessionManager
 
 @Composable
-fun ScrollMeterOverlay(sessionManager: SessionManager) {
+fun ScrollMeterOverlay(
+    sessionManager: SessionManager,
+    settingsDataStore: SettingsDataStore
+) {
     val swipeCount by sessionManager.swipeCount.collectAsStateWithLifecycle()
     val sessionTime by sessionManager.sessionTime.collectAsStateWithLifecycle()
+    val timeLimitMinutes by settingsDataStore.timeLimitMinutes.collectAsState(initial = 10L)
+
+    val isOverLimit = sessionTime > (timeLimitMinutes * 60)
+    
+    // Translucent colors as requested
+    val bubbleColor = if (isOverLimit) {
+        Color.Red.copy(alpha = 0.4f)
+    } else {
+        Color.Green.copy(alpha = 0.4f)
+    }
 
     Row(
-        modifier = Modifier
-            .padding(8.dp),
+        modifier = Modifier.padding(8.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // Bubble 1: Time
-        Bubble(text = formatTime(sessionTime))
+        Bubble(text = formatTime(sessionTime), backgroundColor = bubbleColor)
 
         // Bubble 2: Swipe Count
-        Bubble(text = "↑ $swipeCount")
+        Bubble(text = "↑ $swipeCount", backgroundColor = bubbleColor)
     }
 }
 
 @Composable
-fun Bubble(text: String) {
+fun Bubble(text: String, backgroundColor: Color) {
     Box(
         modifier = Modifier
             .size(56.dp)
             .clip(CircleShape)
-            .background(Color.Black.copy(alpha = 0.7f)),
+            .background(backgroundColor),
         contentAlignment = Alignment.Center
     ) {
         Text(
