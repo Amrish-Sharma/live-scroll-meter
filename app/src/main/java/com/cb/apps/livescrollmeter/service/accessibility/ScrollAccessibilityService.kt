@@ -24,6 +24,13 @@ class ScrollAccessibilityService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         event ?: return
 
+        // Enhanced logging for debugging
+        Log.d(
+            "LSM_DEBUG",
+            "Event: type=${AccessibilityEvent.eventTypeToString(event.eventType)}, " +
+                    "package=${event.packageName}, class=${event.className}, text=${event.text}"
+        )
+
         val packageName = event.packageName?.toString() ?: return
         if (packageName !in supportedApps) {
             sessionManager.endSession()
@@ -87,8 +94,12 @@ class ScrollAccessibilityService : AccessibilityService() {
     }
 
     private fun handleSwipeDetection(event: AccessibilityEvent, rootNode: AccessibilityNodeInfo) {
-        // Log for debugging
-        Log.d("LSM_DEBUG", "Event: ${AccessibilityEvent.eventTypeToString(event.eventType)}")
+        // Enhanced log for debugging
+        Log.d(
+            "LSM_DEBUG",
+            "SwipeDetection: type=${AccessibilityEvent.eventTypeToString(event.eventType)}, " +
+                    "package=${event.packageName}, class=${event.className}, text=${event.text}"
+        )
 
         when (event.eventType) {
             // Focusing on more "intent-based" events to reduce double counts

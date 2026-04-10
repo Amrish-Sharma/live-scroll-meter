@@ -1,9 +1,12 @@
 package com.cb.apps.livescrollmeter.ui.dashboard
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -11,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -63,6 +67,11 @@ fun DashboardScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
+        if (dailyStats.isNotEmpty()) {
+            UsageGraph(dailyStats)
+            Spacer(modifier = Modifier.height(24.dp))
+        }
+
         if (activeApp != null) {
             Text(
                 text = "Currently Tracking: ${activeApp?.substringAfterLast(".")}",
@@ -90,7 +99,7 @@ fun DashboardScreen(
         Spacer(modifier = Modifier.height(8.dp))
 
         LazyColumn(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().weight(1f),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(dailyStats) { stat ->
@@ -101,8 +110,60 @@ fun DashboardScreen(
 }
 
 @Composable
+fun UsageGraph(dailyStats: List<DailyStat>) {
+    val maxDuration = dailyStats.maxOfOrNull { it.totalDurationSeconds } ?: 1L
+    val displayStats = dailyStats.takeLast(7) // Show last 7 days
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text(
+                text = "Usage (last 7 days)",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(100.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.Bottom
+            ) {
+                displayStats.forEach { stat ->
+                    val barHeightFactor = (stat.totalDurationSeconds.toFloat() / maxDuration).coerceAtLeast(0.05f)
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "${stat.totalDurationSeconds / 60}m",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.secondary
+                        )
+                        Box(
+                            modifier = Modifier
+                                .width(24.dp)
+                                .fillMaxHeight(barHeightFactor)
+                                .background(
+                                    color = MaterialTheme.colorScheme.primary,
+                                    shape = RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp)
+                                )
+                        )
+                        Text(
+                            text = stat.date.substringAfterLast("-"),
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun TimeLimitSettings(initialLimit: Long, onLimitSaved: (Long) -> Unit) {
     var textValue by remember(initialLimit) { mutableStateOf(initialLimit.toString()) }
+    var isEditing by remember { mutableStateOf(false) }
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
@@ -114,19 +175,26 @@ fun TimeLimitSettings(initialLimit: Long, onLimitSaved: (Long) -> Unit) {
                 onValueChange = { textValue = it },
                 label = { Text("Time Limit (min)") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                enabled = isEditing
             )
             Spacer(modifier = Modifier.width(16.dp))
             Button(onClick = {
-                textValue.toLongOrNull()?.let { onLimitSaved(it) }
+                if (isEditing) {
+                    textValue.toLongOrNull()?.let { 
+                        onLimitSaved(it)
+                        isEditing = false
+                    }
+                } else {
+                    isEditing = true
+                }
             }) {
-                Text("Save")
+                Text(if (isEditing) "Save" else "Update")
             }
         }
         
-        // Success message below the input
         Text(
-            text = "You have set $initialLimit minutes of scrolling",
+            text = "Current limit: $initialLimit minutes",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.padding(top = 4.dp, start = 4.dp)
